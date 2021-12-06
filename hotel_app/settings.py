@@ -121,7 +121,7 @@ USE_TZ = False
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+#STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Django REST Framework settings
 
@@ -130,3 +130,7 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 200,
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend']
 }
+
+# Configure Django App for Heroku.
+import django_heroku
+django_heroku.settings(locals())
