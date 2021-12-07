@@ -43,27 +43,22 @@ class RoomCategoryDetail(RetrieveUpdateDestroyAPIView):
 
 ### Booking API ###
 
+# Format room IDs from a string or list
 def format_room_ids(room_ids):
     if type(room_ids) is str:
-        room_ids = room_ids.replace(" ","").split(',')
+        room_ids = room_ids.replace(" ","").replace(";",",").split(',')
     return ",".join(str(room_id) for room_id in room_ids)
 
-fetch_rooms_by_ids = lambda room_ids: [Room.objects.get(pk=room_id) for room_id in room_ids.split(',')]
 # Returns a list of Room objects for a list of room IDs.
-
-def validate_booking_data_and_add_cost(booking_data, rooms, booking_id=None):
-    Booking.validate_booking_data(booking_data, rooms, booking_id)
-    booking_data["cost"] = Room.calculate_cost(rooms)
-
-class RoomBookingList(ListAPIView):
-    """
-    List all snippets, or create a new snippet.
-    """
-    queryset = RoomBooking.objects.all()
-    serializer_class = RoomBookingSerializer
+fetch_rooms_by_ids = lambda room_ids: [Room.objects.get(pk=room_id) for room_id in room_ids.split(',')]
 
 class BookingList(ListAPIView):
-
+    """
+    List all bookings or create a new one.
+    When creating a new booking, please provide room_ids as a list or a string with ids separated by commas.
+    This API endpoint allows for filtering results using GET request parameters. Use room_number parameter to filter by room number.
+    Please note that the cost of booking is calculated on the server side, so the parameter will be ignored. 
+    """
     serializer_class = BookingSerializer
 
     def get_queryset(self):
@@ -97,7 +92,8 @@ class BookingList(ListAPIView):
         booking_data["room_ids"] = format_room_ids(booking_data["room_ids"])
         rooms = fetch_rooms_by_ids(booking_data["room_ids"])
         try:
-            validate_booking_data_and_add_cost(booking_data, rooms)
+            Booking.validate_booking_data(booking_data, rooms)
+            booking_data["cost"] = Room.calculate_cost(rooms)
         except Exception as err:
             return Response(str(err), status=status.HTTP_400_BAD_REQUEST)
         print(booking_data["room_ids"])
@@ -111,6 +107,11 @@ class BookingList(ListAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
                 
 class BookingDetail(RetrieveDestroyAPIView):
+    """
+    Retrieves, deletes or updates a specific booking.
+    When updating a booking, please provide room_ids as a list or a string with ids separated by commas.
+    Please note that the cost of booking is calculated on the server side, so the parameter will be ignored.
+    """
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
 
@@ -124,7 +125,8 @@ class BookingDetail(RetrieveDestroyAPIView):
         booking_data["room_ids"] = format_room_ids(booking_data["room_ids"])
         rooms = fetch_rooms_by_ids(booking_data["room_ids"])
         try:
-            validate_booking_data_and_add_cost(booking_data, rooms, booking.id)
+            Booking.validate_booking_data(booking_data, rooms, booking.id)
+            booking_data["cost"] = Room.calculate_cost(rooms)
         except Exception as err:
             return Response(str(err), status=status.HTTP_400_BAD_REQUEST)
 
@@ -135,6 +137,9 @@ class BookingDetail(RetrieveDestroyAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class BookingDuration(GenericAPIView):
+    """
+    Returns a duration of a specific booking.
+    """
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
 
@@ -147,6 +152,9 @@ class BookingDuration(GenericAPIView):
         return Response(response, status=status.HTTP_200_OK)
 
 class BookingCost(GenericAPIView):
+    """
+    Returns a cost of a specific booking.
+    """
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
 
