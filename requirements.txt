@@ -4,3 +4,4 @@ djangorestframework==3.11.2
 gunicorn==19.7.1
 django_heroku
 PyYAML
+uritemplate
