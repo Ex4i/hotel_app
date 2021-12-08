@@ -6,8 +6,7 @@ from reservations.serializers import RoomSerializer, RoomCategorySerializer, Boo
 from reservations.models import Room, RoomCategory, Booking, RoomBooking
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView, GenericAPIView, RetrieveDestroyAPIView
 from django.db import transaction
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.schemas.openapi import SchemaGenerator
+from datetime import datetime
 
 
 ### Rooms API ###
@@ -52,6 +51,8 @@ def format_room_ids(room_ids):
 # Returns a list of Room objects for a list of room IDs.
 fetch_rooms_by_ids = lambda room_ids: [Room.objects.get(pk=room_id) for room_id in room_ids.split(',')]
 
+calculate_duration = lambda booking_data: (datetime.strptime(booking_data["end_date"], "%Y-%m-%d").date() - datetime.strptime(booking_data["start_date"], "%Y-%m-%d").date()).days
+
 class BookingList(ListAPIView):
     """
     List all bookings or create a new one.
@@ -93,7 +94,8 @@ class BookingList(ListAPIView):
         rooms = fetch_rooms_by_ids(booking_data["room_ids"])
         try:
             Booking.validate_booking_data(booking_data, rooms)
-            booking_data["cost"] = Room.calculate_cost(rooms)
+            duration = calculate_duration(booking_data)
+            booking_data["cost"] = Room.calculate_cost(rooms, duration)
         except Exception as err:
             return Response(str(err), status=status.HTTP_400_BAD_REQUEST)
         print(booking_data["room_ids"])
@@ -126,7 +128,8 @@ class BookingDetail(RetrieveDestroyAPIView):
         rooms = fetch_rooms_by_ids(booking_data["room_ids"])
         try:
             Booking.validate_booking_data(booking_data, rooms, booking.id)
-            booking_data["cost"] = Room.calculate_cost(rooms)
+            duration = calculate_duration(booking_data)
+            booking_data["cost"] = Room.calculate_cost(rooms, duration)
         except Exception as err:
             return Response(str(err), status=status.HTTP_400_BAD_REQUEST)
 

@@ -14,32 +14,48 @@ class RoomCategory(models.Model):
 class Room(models.Model):
     number = models.PositiveIntegerField(unique=True)
     category = models.ForeignKey(RoomCategory, on_delete=models.DO_NOTHING)
-    capacity = models.PositiveIntegerField()
+    capacity = models.PositiveIntegerField(validators=[MinValueValidator(0)])
     def __str__(self):
         return str(self.number)
 
     def is_available(self, start_date, end_date, booking_id=None):
+        """
+        Checks if the room is available for a given time period
+        Excludes booking given in an optional parameter
+        """
         room_bookings = RoomBooking.objects.filter(room__id=self.id, booking__end_date__gt=start_date, booking__start_date__lt=end_date)
         if booking_id is not None:
             room_bookings = room_bookings.exclude(booking__id=booking_id)
         return False if len(room_bookings) > 0 else True
 
     def check_rooms_availability(rooms, start_date, end_date, booking_id=None):
+        """
+        Checks if rooms are available for a given time period
+        Excludes booking given in an optional parameter
+        """
         for room in rooms:
             if not room.is_available(start_date, end_date, booking_id):
                 return False
         return True
 
     def check_rooms_capacity(rooms, people):
+        """
+        Checks if the capacity of rooms passed as a list is greater than the number of people provided
+        """
         capacity = reduce(lambda x, room: x+room.capacity, rooms, 0)
         return True if capacity >= int(people) else False
 
-    def calculate_cost(rooms):
-        cost = 0
-        for room in rooms:
-            room_category = RoomCategory.objects.get(pk=room.category)
-            cost += room_category.price
-        return cost
+    def get_cost(self):
+        """
+        Returns a cost of a single day in the room
+        """
+        return RoomCategory.objects.get(pk=self.category).price
+
+    def calculate_cost(rooms, days):
+        """
+        Returns a cost of booking rooms provided in the list for a given number of days
+        """
+        return reduce(lambda x, room: x+room.get_cost(), rooms, 0) * days
 
 class Booking(models.Model):
     start_date = models.DateField()
@@ -47,7 +63,7 @@ class Booking(models.Model):
     name = models.CharField(max_length=100)
     surname = models.CharField(max_length=100)
     room_ids = models.CharField(max_length=100)
-    number_of_people = models.PositiveIntegerField() 
+    number_of_people = models.PositiveIntegerField(validators=[MinValueValidator(1)]) 
     cost = models.PositiveIntegerField()
     def __str__(self):
         return self.name + " " + self.surname
@@ -55,7 +71,7 @@ class Booking(models.Model):
     def is_date_range_correct(start_date, end_date):
         start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
         end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-        return True if start_date >= datetime.now().date() and end_date > start_date else False
+        return True if start_date >= datetime.today().date() and end_date > start_date else False
 
     def create_room_bookings(self, rooms):
         for room in rooms:
